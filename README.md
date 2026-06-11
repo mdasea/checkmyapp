@@ -14,7 +14,8 @@ npm run dev       # ✅ tunneled automatically
 
 That's it. Your dev server is now publicly accessible at a URL like `https://a3b8k2x1.checkmyapp.online`.
 
-Web dashboard → **[checkmyapp.online](https://checkmyapp.online)**
+Web dashboard → **[checkmyapp.online](https://checkmyapp.online)**  
+Features: live tunnel status, bandwidth usage, subdomain management, [session history](https://checkmyapp.online/dashboard.html).
 
 ---
 
@@ -119,10 +120,12 @@ checkmyapp uses OAuth 2.0 to verify your identity. No passwords are handled clie
 | Feature              | Free                               | Pro                          |
 |----------------------|------------------------------------|------------------------------|
 | **Price**            | $0                                 | $5 / month                   |
-| **Session duration** | 60 minutes                         | Unlimited (no expiry)        |
-| **Bandwidth**        | 500 MB / day                       | 10 GB / day                  |
-| **Subdomain**        | Random (e.g. `a3b8k2x1`)          | Custom subdomain             |
-| **Uptime**           | Tunnel closes when CLI exits       | 24/7 persistent tunnels     |
+| **Session duration** | 60 minutes                         | 24 hours                     |
+| **Concurrent tunnels** | 1                                | 3                            |
+| **Bandwidth**        | 500 MB / day                       | 10 GB / month                |
+| **Subdomain**        | Random (e.g. `a3b8k2x1`)          | 1 permanent custom subdomain |
+| **Tunnel history**   | ✅ Dashboard                       | ✅ Dashboard + extended      |
+| **Web dashboard**    | ✅ checkmyapp.online               | ✅ checkmyapp.online         |
 
 Upgrade via the [web dashboard](https://checkmyapp.online/pro.html).
 
