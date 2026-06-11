@@ -9,6 +9,7 @@ import { get, set, clear as configClear, getConfigPath } from '../src/config.js'
 import { authenticate, getToken, validateToken } from '../src/auth.js';
 import { spawnDevServer } from '../src/port-detection.js';
 import TunnelClient from '../src/tunnel.js';
+import { checkForUpdate } from '../src/update-check.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -230,6 +231,9 @@ function handleLogout() {
 
 // --- Main ---
 async function main() {
+  // Fire-and-forget version check
+  checkForUpdate(PACKAGE_VERSION);
+
   const cmd = process.argv[2] || 'dev';
   const rest = process.argv.slice(3);
 
