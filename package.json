@@ -3,9 +3,7 @@
   "version": "1.0.0",
   "description": "CLI client for checkmyapp — auto-detect dev server port and tunnel to checkmyapp server",
   "type": "module",
-  "bin": {
-    "checkmyapp": "./bin/checkmyapp.js"
-  },
+  "bin": "./bin/checkmyapp.js",
   "main": "./src/index.js",
   "files": [
     "bin/",

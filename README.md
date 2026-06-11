@@ -315,7 +315,7 @@ Only the data necessary for tunnel operation: your GitHub/Google public profile 
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-org/checkmyapp.git
+git clone https://github.com/mdasea/checkmyapp.git
 cd checkmyapp
 
 # Install dependencies
