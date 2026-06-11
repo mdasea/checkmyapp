@@ -10,9 +10,9 @@ const AUTH_TIMEOUT_MS = 120_000;
  * @returns {string}
  */
 function buildAuthorizeUrl(provider) {
-  const serverUrl = get('serverUrl') || 'https://checkmyapp.online';
+  const serverUrl = get('serverUrl') || 'https://api.checkmyapp.online';
   const redirectUri = `http://localhost:${CALLBACK_PORT}/callback`;
-  return `${serverUrl}/auth/${provider}?redirect_uri=${encodeURIComponent(redirectUri)}`;
+  return `${serverUrl}/api/auth/${provider}/login?redirect_uri=${encodeURIComponent(redirectUri)}`;
 }
 
 /**
@@ -131,8 +131,8 @@ export async function validateToken() {
     return false;
   }
 
-  const serverUrl = get('serverUrl') || 'https://checkmyapp.online';
-  const validateUrl = `${serverUrl}/auth/validate`;
+  const serverUrl = get('serverUrl') || 'https://api.checkmyapp.online';
+  const validateUrl = `${serverUrl}/api/auth/validate`;
 
   try {
     const res = await fetch(validateUrl, {

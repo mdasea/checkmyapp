@@ -27,11 +27,12 @@ export function getConfig() {
   if (!_config) {
     _config = new Conf({
       projectName: 'checkmyapp',
+      projectSuffix: '',
       cwd: undefined, // use default OS config directory
       schema,
       defaults: {
         authToken: '',
-        serverUrl: 'https://checkmyapp.online',
+        serverUrl: 'https://api.checkmyapp.online',
         lastSubdomain: '',
       },
     });

@@ -19,7 +19,8 @@ export default class TunnelClient {
   constructor(options = {}) {
     this.localPort = options.localPort;
     this.token = options.token || get('authToken') || '';
-    this.serverUrl = options.serverUrl || get('serverUrl') || 'https://checkmyapp.online';
+    this.serverUrl = options.serverUrl || get('serverUrl') || 'https://api.checkmyapp.online';
+    this.subdomain = options.subdomain || null;
     this.quiet = !!options.quiet;
 
     this.ws = null;
@@ -35,7 +36,11 @@ export default class TunnelClient {
    * @returns {string}
    */
   _getWsUrl() {
-    return this.serverUrl.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
+    let url = this.serverUrl.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
+    if (this.subdomain) {
+      url += (url.includes('?') ? '&' : '?') + `subdomain=${encodeURIComponent(this.subdomain)}`;
+    }
+    return url;
   }
 
   /**
@@ -131,6 +136,9 @@ export default class TunnelClient {
         if (!this.quiet) {
           console.log(`🌍 Tunnel established!`);
           console.log(`   Public URL: ${publicUrl}`);
+          if (!this.token) {
+            console.log(`   🔑 Login at https://checkmyapp.online/dashboard to track usage & get Pro features`);
+          }
         }
         break;
       }
@@ -159,6 +167,12 @@ export default class TunnelClient {
 
       case 'pong': {
         // heartbeat acknowledged — nothing to do
+        break;
+      }
+
+      case 'ping': {
+        // Server ping — respond with pong
+        this._send({ type: 'pong' });
         break;
       }
 
@@ -220,6 +234,7 @@ export default class TunnelClient {
           statusCode: proxyRes.statusCode,
           headers: proxyRes.headers,
           body: responseBodyB64,
+          base64: true,
           truncated: totalBytes > MAX_RESPONSE_BODY_BYTES,
         });
       });

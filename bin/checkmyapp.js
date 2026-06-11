@@ -42,6 +42,7 @@ COMMANDS
     Example: checkmyapp dev -- npx vite
 
   auth [provider]           Authenticate with OAuth provider (default: github)
+                            Optional — only needed for Pro features
 
   status                    Show current session and config info
 
@@ -93,31 +94,36 @@ function getDevCommand(args) {
 
 /**
  * Handle the 'dev' command — the core workflow.
- * 1. Check existing token, validate if present, re-auth if needed.
- * 2. Spawn dev server and detect port.
- * 3. Start tunnel client.
+ * No auth required — anonymous tunnels are free tier.
+ * Optionally provide --subdomain <name> for Pro users.
  *
  * @param {string[]} args - Remaining CLI args
  */
 async function handleDev(args) {
-  // --- Token check ---
-  let token = getToken();
-  if (!token) {
-    console.log('🔑 No authentication token found. Starting authentication...');
-    token = await authenticate('github');
-  } else {
-    console.log('🔑 Validating existing token...');
-    const valid = await validateToken();
-    if (!valid) {
-      console.log('⚠️  Token is invalid or expired. Re-authenticating...');
-      token = await authenticate('github');
+  // --- Check for --subdomain flag ---
+  let customSubdomain = null;
+  const filteredArgs = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--subdomain' && i + 1 < args.length) {
+      customSubdomain = args[++i];
     } else {
-      console.log('✅ Token is valid.');
+      filteredArgs.push(args[i]);
     }
   }
 
+  // --- Optional token (no auth required to run) ---
+  const token = getToken() || '';
+  if (token) {
+    const valid = await validateToken();
+    if (valid) {
+      console.log(`🔑 Authenticated — Pro features enabled`);
+    }
+  } else {
+    console.log(`🔑 Running anonymously — login at https://checkmyapp.online/dashboard to track usage`);
+  }
+
   // --- Get dev server command ---
-  const devCmd = getDevCommand(args);
+  const devCmd = getDevCommand(filteredArgs);
   console.log(`⚙️  Starting dev server: ${devCmd.command} ${devCmd.args.join(' ')}`);
 
   // --- Spawn dev server ---
@@ -144,11 +150,12 @@ async function handleDev(args) {
   }
 
   // --- Start tunnel ---
-  const serverUrl = get('serverUrl') || 'https://checkmyapp.online';
+  const serverUrl = get('serverUrl') || 'https://api.checkmyapp.online';
   const tunnel = new TunnelClient({
     localPort,
     token,
     serverUrl,
+    subdomain: customSubdomain,
   });
 
   try {
@@ -205,7 +212,7 @@ function handleStatus() {
 📋 checkmyapp Status
 ====================
   Server URL:      ${serverUrl}
-  Authenticated:   ${token ? '✅ Yes' : '❌ No'}
+  Authenticated:   ${token ? '✅ Yes' : '❌ No (not required)'}
   Last subdomain:  ${lastSubdomain}
   Config file:     ${configPath}
   Node.js:         ${process.version}
