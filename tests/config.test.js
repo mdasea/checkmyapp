@@ -64,13 +64,13 @@ describe('config module', () => {
 
     // After clear, values should return defaults
     assert.equal(config.get('authToken'), '');
-    assert.equal(config.get('serverUrl'), 'https://checkmyapp.online');
+    assert.equal(config.get('serverUrl'), 'https://api.checkmyapp.online');
     assert.equal(config.get('lastSubdomain'), '');
   });
 
-  it('default serverUrl is https://checkmyapp.online', async () => {
+  it('default serverUrl is https://api.checkmyapp.online', async () => {
     const config = await import('../src/config.js');
-    assert.equal(config.get('serverUrl'), 'https://checkmyapp.online');
+    assert.equal(config.get('serverUrl'), 'https://api.checkmyapp.online');
   });
 
   it('default authToken is empty string', async () => {
