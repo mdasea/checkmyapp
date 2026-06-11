@@ -1,0 +1,35 @@
+{
+  "name": "checkmyapp",
+  "version": "1.0.0",
+  "description": "CLI client for checkmyapp — auto-detect dev server port and tunnel to checkmyapp server",
+  "type": "module",
+  "bin": {
+    "checkmyapp": "./bin/checkmyapp.js"
+  },
+  "main": "./src/index.js",
+  "files": [
+    "bin/",
+    "src/",
+    "tests/"
+  ],
+  "scripts": {
+    "start": "node bin/checkmyapp.js",
+    "test": "node --test tests/*.test.js",
+    "prepublishOnly": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "conf": "^13.0.0",
+    "open": "^10.1.0",
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "tunnel",
+    "dev-server",
+    "checkmyapp",
+    "cli"
+  ],
+  "license": "MIT"
+}
