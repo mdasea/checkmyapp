@@ -2,7 +2,6 @@
 
 [![npm version](https://img.shields.io/npm/v/checkmyapp?style=flat-square)](https://www.npmjs.com/package/checkmyapp)
 [![npm downloads](https://img.shields.io/npm/dw/checkmyapp?style=flat-square)](https://www.npmjs.com/package/checkmyapp)
-[![MIT license](https://img.shields.io/npm/l/checkmyapp?style=flat-square)](LICENSE)
 
 > **Tunnel your local dev server to the internet in 0 seconds of config.**
 
@@ -14,6 +13,8 @@ npm run dev       # ✅ tunneled automatically
 ```
 
 That's it. Your dev server is now publicly accessible at a URL like `https://a3b8k2x1.checkmyapp.online`.
+
+Web dashboard → **[checkmyapp.online](https://checkmyapp.online)**
 
 ---
 
@@ -48,8 +49,6 @@ If you prefer to run checkmyapp explicitly:
 
 ```bash
 npx checkmyapp
-# or
-checkmyapp dev
 ```
 
 ### Skip auto-init in CI
@@ -83,7 +82,7 @@ checkmyapp follows a straightforward architecture:
 
 1. **Port Detection** — checkmyapp runs your dev server (`npm run dev` by default) and watches stdout / stderr for patterns like `http://localhost:5173` or `listening on port 3000`.
 
-2\. **Authentication** — Your browser opens to the checkmyapp OAuth flow (GitHub or Google). After authorizing, a session token is stored locally in `~/.config/checkmyapp/config.json`.
+2. **Authentication** — Your browser opens to the checkmyapp OAuth flow (GitHub or Google). After authorizing, a session token is stored locally in `~/.config/checkmyapp/config.json`.
 
 3. **WebSocket Tunnel** — The CLI establishes a persistent WebSocket connection to the checkmyapp server, registers your session, and gets assigned a public subdomain.
 
@@ -100,7 +99,7 @@ checkmyapp uses OAuth 2.0 to verify your identity. No passwords are handled clie
 | Provider | Command |
 |----------|---------|
 | GitHub   | `checkmyapp auth github` (default) |
-| Google  | `checkmyapp auth google` |
+| Google   | `checkmyapp auth google` |
 
 ### Flow
 
@@ -123,9 +122,9 @@ checkmyapp uses OAuth 2.0 to verify your identity. No passwords are handled clie
 | **Session duration** | 60 minutes                         | Unlimited (no expiry)        |
 | **Bandwidth**        | 500 MB / day                       | 10 GB / day                  |
 | **Subdomain**        | Random (e.g. `a3b8k2x1`)          | Custom subdomain             |
-| **Uptime**           | Tunnel closes when CLI exits       | 24/7 persistent tunnels*     |
+| **Uptime**           | Tunnel closes when CLI exits       | 24/7 persistent tunnels     |
 
-*Pro tunnels can run as a background service for continuous availability.
+Upgrade via the [web dashboard](https://checkmyapp.online/pro.html).
 
 ---
 
@@ -171,7 +170,7 @@ Authenticate with an OAuth provider.
 ```bash
 checkmyapp auth          # GitHub (default)
 checkmyapp auth github   # GitHub explicitly
-checkmyapp auth google  # Google
+checkmyapp auth google   # Google
 ```
 
 ### `checkmyapp status`
@@ -215,32 +214,22 @@ The CLI persists configuration in `~/.config/checkmyapp/config.json` using the [
 
 | Variable         | Description                          | Default                  |
 |------------------|--------------------------------------|--------------------------|
-| `CHECKMYAPP_SERVER_URL` | URL of the checkmyapp tunnel server | `http://localhost:3000` |
-
-When running against a production server, set it before invoking the CLI:
-
-```bash
-export CHECKMYAPP_SERVER_URL=https://checkmyapp.online
-npx checkmyapp
-```
-
-You can also change the server URL in the config file directly, though the env var takes precedence.
+| `CHECKMYAPP_SERVER_URL` | URL of the checkmyapp tunnel server | `https://checkmyapp.online` |
 
 ---
 
 ## Comparison with Alternatives
 
-| Feature                | checkmyapp                                      | ngrok                     | localtunnel              | bore                      |
-|------------------------|-------------------------------------------------|---------------------------|--------------------------|---------------------------|
-| **Setup time**         | 0 config — just `npx checkmyapp`               | Auth token + config file | One command              | One command               |
-| **Port detection**     | ✅ Auto-detects from stdout                    | ❌ Manual                  | ❌ Manual                 | ❌ Manual                  |
-| **Auth**               | GitHub / Google OAuth                         | Built-in (email/password) | None                     | None (public)             |
-| **Free bandwidth**     | 500 MB / day                                   | 1 GB / month              | Unlimited (no SLA)       | Unlimited (no SLA)        |
-| **Free session TTL**   | 60 minutes                                     | 1 hour                    | Connection‑based         | Connection‑based          |
-| **Custom subdomains**  | ✅ Pro plan                                    | ✅ Paid plans             | ❌ Random only            | ❌ Random only             |
-| **Pricing**            | $5/mo Pro                                      | From $8/mo                | Free / donations         | Free                      |
-| **Built for devs**     | ✅ Student‑developer focused, zero‑config      | General purpose           | Simple sharing           | Minimal tunnel            |
-| **Open source**        | ✅ MIT                                          | ❌ Proprietary             | ✅ MIT                    | ✅ MIT                     |
+| Feature                | checkmyapp                                      | ngrok                     | localtunnel               | bore                      |
+|------------------------|-------------------------------------------------|---------------------------|---------------------------|---------------------------|
+| **Setup time**         | 0 config — just `npx checkmyapp`               | Auth token + config file  | One command               | One command               |
+| **Port detection**     | ✅ Auto-detects from stdout                    | ❌ Manual                  | ❌ Manual                  | ❌ Manual                  |
+| **Auth**               | GitHub / Google OAuth                          | Built-in (email/password) | None                      | None (public)             |
+| **Free bandwidth**     | 500 MB / day                                   | 1 GB / month              | Unlimited (no SLA)        | Unlimited (no SLA)        |
+| **Free session TTL**   | 60 minutes                                     | 1 hour                    | Connection‑based          | Connection‑based          |
+| **Custom subdomains**  | ✅ Pro plan                                    | ✅ Paid plans             | ❌ Random only             | ❌ Random only             |
+| **Pricing**            | $5/mo Pro                                      | From $8/mo                | Free / donations          | Free                      |
+| **Web dashboard**      | ✅ checkmyapp.online                           | ✅                        | ❌                         | ❌                         |
 
 ### When to choose checkmyapp
 
@@ -274,7 +263,7 @@ After 60 minutes the tunnel closes. Just run `checkmyapp dev` again to start a n
 
 ### Can I use a custom domain or subdomain?
 
-Custom subdomains are available on the **Pro** plan ($5/mo). On the free plan you get a random subdomain like `a3b8k2x1.checkmyapp.online`.
+Custom subdomains are available on the **Pro** plan ($5/mo). On the free plan you get a random subdomain like `a3b8k2x1.checkmyapp.online`. Upgrade via the [Pro page](https://checkmyapp.online/pro.html).
 
 ### How does port detection work?
 
@@ -303,7 +292,7 @@ The CLI uses standard HTTP/WebSocket libraries that respect `HTTP_PROXY`, `HTTPS
 
 ### How do I upgrade to Pro?
 
-Authentication is handled via the server dashboard (coming soon). Pro unlocks unlimited session duration, 10 GB/day bandwidth, and custom subdomains.
+Go to [checkmyapp.online/pro.html](https://checkmyapp.online/pro.html) and authenticate. Pay via PayPal or Wise.
 
 ### What data does checkmyapp collect?
 
@@ -345,6 +334,6 @@ checkmyapp/
 
 ## License
 
-MIT © 2026 CheckMyApp Contributors
+Proprietary. All rights reserved.
 
 See [LICENSE](LICENSE) for full details.
