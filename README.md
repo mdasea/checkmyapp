@@ -6,37 +6,57 @@
 
 > **Tunnel your local dev server to the internet in 0 seconds of config.**
 
-checkmyapp is a zero‑config CLI tool that auto‑detects your dev server port, authenticates you via GitHub or Discord OAuth, and establishes a secure WebSocket tunnel — so you can share your work-in-progress with anyone, anywhere, instantly.
+checkmyapp is a zero‑config CLI tool that auto‑detects your dev server port, authenticates you via GitHub or Google OAuth, and establishes a secure WebSocket tunnel — so you can share your work-in-progress with anyone, anywhere, instantly.
 
 ```bash
 npm install --save-dev checkmyapp
-npx checkmyapp
+npm run dev       # ✅ tunneled automatically
 ```
+
+That's it. Your dev server is now publicly accessible at a URL like `https://a3b8k2x1.checkmyapp.online`.
 
 ---
 
 ## Quick Start
 
-1. **Install the package**
+1. **Install as a dev dependency**
 
    ```bash
    npm install --save-dev checkmyapp
    ```
 
-2. **Run it**
+   The install automatically wraps your `dev` script — no config needed.
+
+2. **Run your dev server as usual**
 
    ```bash
-   npx checkmyapp
+   npm run dev
    ```
 
-   That's it. checkmyapp spawns `npm run dev`, watches the output for a port number, opens your browser for OAuth, and prints a public URL you can share.
+   You'll see the tunnel URL appear in the output alongside your dev server logs.
 
 3. **Share the URL**
 
    ```
    🌍 Tunnel established!
-      Public URL: https://a3b8k2x1.checkmyapp.dev
+      Public URL: https://a3b8k2x1.checkmyapp.online
    ```
+
+### Manual start (without auto-wrap)
+
+If you prefer to run checkmyapp explicitly:
+
+```bash
+npx checkmyapp
+# or
+checkmyapp dev
+```
+
+### Skip auto-init in CI
+
+```bash
+CHECKMYAPP_SKIP_INIT=1 npm install --save-dev checkmyapp
+```
 
 ---
 
@@ -47,7 +67,7 @@ checkmyapp follows a straightforward architecture:
 ```
 ┌─────────────────────┐          WebSocket           ┌──────────────────────┐
 │   Your Machine      │ ◄══════════════════════════► │   checkmyapp Server  │
-│                     │     (wss://checkmyapp.dev)   │                      │
+│                     │     (wss://checkmyapp.online)   │
 │  ┌───────────────┐  │                              │  ┌────────────────┐  │
 │  │  Dev Server   │  │    HTTP proxy (localhost)     │  │  Public        │  │
 │  │  (Vite, CRA,  │  │◄────────────────────────────│  │  Internet      │  │
@@ -63,11 +83,11 @@ checkmyapp follows a straightforward architecture:
 
 1. **Port Detection** — checkmyapp runs your dev server (`npm run dev` by default) and watches stdout / stderr for patterns like `http://localhost:5173` or `listening on port 3000`.
 
-2. **Authentication** — Your browser opens to the checkmyapp OAuth flow (GitHub or Discord). After authorizing, a session token is stored locally in `~/.config/checkmyapp/config.json`.
+2\. **Authentication** — Your browser opens to the checkmyapp OAuth flow (GitHub or Google). After authorizing, a session token is stored locally in `~/.config/checkmyapp/config.json`.
 
 3. **WebSocket Tunnel** — The CLI establishes a persistent WebSocket connection to the checkmyapp server, registers your session, and gets assigned a public subdomain.
 
-4. **Request Proxy** — Incoming HTTP requests to `https://<subdomain>.checkmyapp.dev` are forwarded through the WebSocket to your local dev server. Responses stream back the same way.
+4. **Request Proxy** — Incoming HTTP requests to `https://<subdomain>.checkmyapp.online` are forwarded through the WebSocket to your local dev server. Responses stream back the same way.
 
 ---
 
@@ -80,13 +100,13 @@ checkmyapp uses OAuth 2.0 to verify your identity. No passwords are handled clie
 | Provider | Command |
 |----------|---------|
 | GitHub   | `checkmyapp auth github` (default) |
-| Discord  | `checkmyapp auth discord` |
+| Google  | `checkmyapp auth google` |
 
 ### Flow
 
 1. You run `checkmyapp auth` (or `checkmyapp dev` without a stored token).
 2. Your browser opens to the checkmyapp server's OAuth entry point.
-3. You authorize on GitHub / Discord.
+3. You authorize on GitHub / Google.
 4. The server redirects back to a local callback server (port 9876) with a session token.
 5. The token is saved to disk. Subsequent runs reuse it until it expires.
 
@@ -151,7 +171,7 @@ Authenticate with an OAuth provider.
 ```bash
 checkmyapp auth          # GitHub (default)
 checkmyapp auth github   # GitHub explicitly
-checkmyapp auth discord  # Discord
+checkmyapp auth google  # Google
 ```
 
 ### `checkmyapp status`
@@ -160,7 +180,7 @@ Show current session information, authentication status, and configuration path.
 
 ```
 📋 checkmyapp Status
-  Server URL:      https://checkmyapp.dev
+  Server URL:      https://checkmyapp.online
   Authenticated:   ✅ Yes
   Last subdomain:  a3b8k2x1
   Config file:     /home/user/.config/checkmyapp/config.json
@@ -200,7 +220,7 @@ The CLI persists configuration in `~/.config/checkmyapp/config.json` using the [
 When running against a production server, set it before invoking the CLI:
 
 ```bash
-export CHECKMYAPP_SERVER_URL=https://checkmyapp.dev
+export CHECKMYAPP_SERVER_URL=https://checkmyapp.online
 npx checkmyapp
 ```
 
@@ -214,7 +234,7 @@ You can also change the server URL in the config file directly, though the env v
 |------------------------|-------------------------------------------------|---------------------------|--------------------------|---------------------------|
 | **Setup time**         | 0 config — just `npx checkmyapp`               | Auth token + config file | One command              | One command               |
 | **Port detection**     | ✅ Auto-detects from stdout                    | ❌ Manual                  | ❌ Manual                 | ❌ Manual                  |
-| **Auth**               | GitHub / Discord OAuth                         | Built-in (email/password) | None                     | None (public)             |
+| **Auth**               | GitHub / Google OAuth                         | Built-in (email/password) | None                     | None (public)             |
 | **Free bandwidth**     | 500 MB / day                                   | 1 GB / month              | Unlimited (no SLA)       | Unlimited (no SLA)        |
 | **Free session TTL**   | 60 minutes                                     | 1 hour                    | Connection‑based         | Connection‑based          |
 | **Custom subdomains**  | ✅ Pro plan                                    | ✅ Paid plans             | ❌ Random only            | ❌ Random only             |
@@ -254,7 +274,7 @@ After 60 minutes the tunnel closes. Just run `checkmyapp dev` again to start a n
 
 ### Can I use a custom domain or subdomain?
 
-Custom subdomains are available on the **Pro** plan ($5/mo). On the free plan you get a random subdomain like `a3b8k2x1.checkmyapp.dev`.
+Custom subdomains are available on the **Pro** plan ($5/mo). On the free plan you get a random subdomain like `a3b8k2x1.checkmyapp.online`.
 
 ### How does port detection work?
 
@@ -287,7 +307,7 @@ Authentication is handled via the server dashboard (coming soon). Pro unlocks un
 
 ### What data does checkmyapp collect?
 
-Only the data necessary for tunnel operation: your GitHub/Discord public profile (name, email, avatar), bandwidth usage counters, and subdomain reservations. No code or request payloads are stored on the server beyond what's needed to relay them.
+Only the data necessary for tunnel operation: your GitHub/Google public profile (name, email, avatar), bandwidth usage counters, and subdomain reservations. No code or request payloads are stored on the server beyond what's needed to relay them.
 
 ---
 

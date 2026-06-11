@@ -26,10 +26,15 @@ try {
  */
 function printHelp() {
   console.log(`
+
 🚀 checkmyapp v${PACKAGE_VERSION} — Tunnel your dev server to the world
 
 USAGE
   checkmyapp [command]
+
+ZERO-CONFIG SETUP
+  npm install --save-dev checkmyapp
+  npm run dev                  # tunneled automatically via postinstall
 
 COMMANDS
   dev [command] [args...]   Start dev server and tunnel it (default)
@@ -49,7 +54,7 @@ COMMANDS
 EXAMPLES
   checkmyapp dev            Spawn 'npm run dev', detect port, start tunnel
   checkmyapp dev -- npx vite  Run a specific dev command
-  checkmyapp auth github    Authenticate with GitHub
+  checkmyapp auth google    Authenticate with Google
 `.trim());
 }
 
@@ -139,7 +144,7 @@ async function handleDev(args) {
   }
 
   // --- Start tunnel ---
-  const serverUrl = get('serverUrl') || 'http://localhost:3000';
+  const serverUrl = get('serverUrl') || 'https://checkmyapp.online';
   const tunnel = new TunnelClient({
     localPort,
     token,

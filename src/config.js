@@ -9,7 +9,7 @@ const schema = {
   },
   serverUrl: {
     type: 'string',
-    default: 'http://localhost:3000',
+    default: 'https://checkmyapp.online',
   },
   lastSubdomain: {
     type: 'string',
@@ -31,7 +31,7 @@ export function getConfig() {
       schema,
       defaults: {
         authToken: '',
-        serverUrl: 'http://localhost:3000',
+        serverUrl: 'https://checkmyapp.online',
         lastSubdomain: '',
       },
     });

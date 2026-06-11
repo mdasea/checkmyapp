@@ -19,7 +19,7 @@ export default class TunnelClient {
   constructor(options = {}) {
     this.localPort = options.localPort;
     this.token = options.token || get('authToken') || '';
-    this.serverUrl = options.serverUrl || get('serverUrl') || 'http://localhost:3000';
+    this.serverUrl = options.serverUrl || get('serverUrl') || 'https://checkmyapp.online';
     this.quiet = !!options.quiet;
 
     this.ws = null;
@@ -127,7 +127,7 @@ export default class TunnelClient {
     switch (msg.type) {
       case 'assigned': {
         this.assignedSubdomain = msg.subdomain || msg.url || 'unknown';
-        const publicUrl = msg.url || `https://${this.assignedSubdomain}.checkmyapp.dev`;
+        const publicUrl = msg.url || `https://${this.assignedSubdomain}.checkmyapp.online`;
         if (!this.quiet) {
           console.log(`🌍 Tunnel established!`);
           console.log(`   Public URL: ${publicUrl}`);
