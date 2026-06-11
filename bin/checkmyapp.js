@@ -28,35 +28,63 @@ try {
 function printHelp() {
   console.log(`
 
-🚀 checkmyapp v${PACKAGE_VERSION} — Tunnel your dev server to the world
+┌─────────────────────────────────────────────┐
+│          🚀  checkmyapp v${PACKAGE_VERSION.padEnd(17)}│
+│          Zero-config tunnel for dev servers  │
+└─────────────────────────────────────────────┘
 
 USAGE
-  checkmyapp [command]
-
-ZERO-CONFIG SETUP
-  npm install --save-dev checkmyapp
-  npm run dev                  # tunneled automatically via postinstall
+  $ checkmyapp [command]
 
 COMMANDS
-  dev [command] [args...]   Start dev server and tunnel it (default)
-    If a command is provided, it is run instead of 'npm run dev'.
-    Example: checkmyapp dev -- npx vite
+  dev [-- <command>]    Start dev server + tunnel (default)
+                        Provide a command after -- to override
+                        Example: checkmyapp dev -- npx vite
 
-  auth [provider]           Authenticate with OAuth provider (default: github)
-                            Optional — only needed for Pro features
+  auth [provider]       Authenticate (github, google)
+                        Optional — needed for custom subdomains
 
-  status                    Show current session and config info
+  status                Show session, config, and bandwidth info
 
-  logout                    Clear stored credentials
+  logout                Clear stored credentials
 
-  --help, -h                Show this help
+  --help, -h            Show this help
+  --version, -v         Show version
 
-  --version, -v             Show version
+TRY IT NOW (zero install)
+  $ npx checkmyapp
 
 EXAMPLES
-  checkmyapp dev            Spawn 'npm run dev', detect port, start tunnel
-  checkmyapp dev -- npx vite  Run a specific dev command
-  checkmyapp auth google    Authenticate with Google
+  # Auto-detect and tunnel npm run dev
+  $ checkmyapp
+
+  # Tunnel a Vite project
+  $ checkmyapp dev -- npx vite
+
+  # Tunnel a specific port with custom subdomain (Pro)
+  $ checkmyapp dev -- --port 3000
+
+  # Authenticate for Pro features
+  $ checkmyapp auth github
+
+  # Check your status
+  $ checkmyapp status
+
+FREE TIER
+  • 1 concurrent tunnel session
+  • 500 MB/day bandwidth
+  • Random subdomain
+  • 60 min session expiry
+
+PRO ($5 / 15 days)
+  • Unlimited concurrent tunnels
+  • 10 GB/month bandwidth
+  • Custom subdomains
+  • 24 hour sessions
+
+📊 Dashboard: https://checkmyapp.online/dashboard
+📖 Docs:      https://checkmyapp.online/pro
+🐙 GitHub:    https://github.com/mdasea/checkmyapp
 `.trim());
 }
 
@@ -161,6 +189,9 @@ async function handleDev(args) {
 
   try {
     await tunnel.connect();
+    // Track tunnel usage
+    const count = (get('tunnelCount') || 0) + 1;
+    set('tunnelCount', count);
   } catch (err) {
     console.error(`❌ Failed to establish tunnel: ${err.message}`);
     killChild();
@@ -203,22 +234,49 @@ async function handleAuth(args) {
 /**
  * Handle the 'status' command.
  */
-function handleStatus() {
+async function handleStatus() {
   const token = getToken();
   const serverUrl = get('serverUrl') || 'http://localhost:3000';
   const lastSubdomain = get('lastSubdomain') || 'none';
   const configPath = getConfigPath();
+  const tunnelCount = get('tunnelCount') || 0;
+
+  let bandwidthInfo = '';
+  let tierInfo = '';
+
+  if (token) {
+    try {
+      const res = await fetch(`${serverUrl}/api/tunnel/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.bandwidth) {
+          const usedMB = (data.bandwidth.bytesUsed / 1024 / 1024).toFixed(1);
+          const limitMB = (data.bandwidth.bytesLimit / 1024 / 1024).toFixed(0);
+          bandwidthInfo = `  Bandwidth:       ${usedMB} MB / ${limitMB} MB (${data.bandwidth.period})`;
+          tierInfo = `  Plan:            ${data.bandwidth.tier === 'paid' ? 'Pro ✅' : 'Free'}`;
+        }
+      }
+    } catch {}
+  }
 
   console.log(`
-📋 checkmyapp Status
-====================
-  Server URL:      ${serverUrl}
-  Authenticated:   ${token ? '✅ Yes' : '❌ No (not required)'}
-  Last subdomain:  ${lastSubdomain}
-  Config file:     ${configPath}
+┌──────────────────────────────────────┐
+│ 📋  checkmyapp Status                │
+├──────────────────────────────────────┤
+  Version:         v${PACKAGE_VERSION}
   Node.js:         ${process.version}
   Platform:        ${process.platform}
-`.trim());
+  Config file:     ${configPath}
+  Server URL:      ${serverUrl}
+  Authenticated:   ${token ? '✅ Yes' : '❌ No (not required)'}
+${tierInfo ? tierInfo + '\n' : ''}${bandwidthInfo ? bandwidthInfo + '\n' : ''}  Last subdomain:  ${lastSubdomain}
+  Tunnels created: ${tunnelCount}
+│
+├──────────────────────────────────────│
+│ 📊  https://checkmyapp.online/dashboard   │
+└──────────────────────────────────────┘`.trim());
 }
 
 /**
@@ -259,7 +317,7 @@ async function main() {
       break;
 
     case 'status':
-      handleStatus();
+      await handleStatus();
       break;
 
     case 'logout':
