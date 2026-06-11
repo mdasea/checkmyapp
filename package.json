@@ -1,6 +1,6 @@
 {
   "name": "checkmyapp",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "CLI client for checkmyapp — auto-detect dev server port and tunnel to checkmyapp server",
   "type": "module",
   "bin": "./bin/checkmyapp.js",
