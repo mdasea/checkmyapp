@@ -76,7 +76,7 @@ FREE TIER
   • Random subdomain
   • 60 min session expiry
 
-PRO ($5 / 15 days)
+PRO ($5 / month — 15-day grace for late payment)
   • Unlimited concurrent tunnels
   • 10 GB/month bandwidth
   • Custom subdomains
