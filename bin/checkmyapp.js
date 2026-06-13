@@ -10,6 +10,9 @@ import { authenticate, getToken, validateToken } from '../src/auth.js';
 import { spawnDevServer } from '../src/port-detection.js';
 import TunnelClient from '../src/tunnel.js';
 import { checkForUpdate } from '../src/update-check.js';
+import { suggestDevScript } from '../src/project-detection.js';
+import { createInterface } from 'node:readline';
+import { stdin as processStdin, stdout as processStdout } from 'node:process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -493,9 +496,9 @@ function handleLogout() {
 }
 
 /**
- * Handle the 'init' command — opt-in dev script wrapping.
- * Scans the project's package.json and wraps the dev script
- * with checkmyapp if it isn't already wrapped.
+ * Handle the 'init' command — wraps the dev script with checkmyapp.
+ * Just prepends `checkmyapp -- ` to the current `npm run dev` command.
+ * If no dev script exists, suggests using an existing script.
  */
 async function handleInit() {
   const projectRoot = process.env.INIT_CWD || process.cwd();
@@ -514,20 +517,63 @@ async function handleInit() {
     process.exit(1);
   }
 
-  const currentDev = pkg.scripts?.dev;
-
-  if (!currentDev) {
-    console.log('ℹ️  No "dev" script found in package.json.');
-    console.log('   Create one and run checkmyapp init again, or use checkmyapp directly:');
-    console.log('     npx checkmyapp <your-command>');
-    process.exit(0);
+  if (!pkg.scripts) {
+    pkg.scripts = {};
   }
 
-  if (currentDev.startsWith('checkmyapp') || currentDev.startsWith('npx checkmyapp')) {
+  const currentDev = pkg.scripts.dev;
+
+  // Already wrapped
+  if (currentDev && (currentDev.startsWith('checkmyapp') || currentDev.startsWith('npx checkmyapp'))) {
     console.log('ℹ️  Your "dev" script is already wrapped with checkmyapp.');
     process.exit(0);
   }
 
+  // Has dev script → just prepend
+  if (currentDev) {
+    return wrapDevScript(pkg, pkgPath, currentDev);
+  }
+
+  // No dev script → suggest from existing scripts
+  console.log('ℹ️  No "dev" script found in package.json.');
+
+  const suggestion = suggestDevScript(pkg);
+  if (suggestion) {
+    console.log(`   Using "${suggestion.script}" script as dev (${suggestion.reason}).`);
+    console.log();
+
+    const rl = createInterface({ input: processStdin, output: processStdout });
+    const answer = await new Promise((resolve) => {
+      rl.question(`   Create "dev" script and wrap with checkmyapp? [Y/n] `, (ans) => {
+        resolve(ans.trim().toLowerCase());
+      });
+    });
+    rl.close();
+
+    if (answer === '' || answer === 'y' || answer === 'yes') {
+      return wrapDevScript(pkg, pkgPath, suggestion.command);
+    }
+
+    console.log('   Skipped. Run checkmyapp directly:');
+    console.log(`     npx checkmyapp ${suggestion.command}`);
+    process.exit(0);
+  }
+
+  // Nothing useful found → help
+  console.log('   Run checkmyapp directly with your dev command:');
+  console.log('     npx checkmyapp <your-dev-command>');
+  console.log();
+  console.log('   Or add a "dev" script to package.json, then run checkmyapp init.');
+  process.exit(0);
+}
+
+/**
+ * Wrap an existing dev script with checkmyapp.
+ * @param {object} pkg - Parsed package.json (mutated)
+ * @param {string} pkgPath - Path to package.json
+ * @param {string} currentDev - The dev script value
+ */
+function wrapDevScript(pkg, pkgPath, currentDev) {
   // Back up original dev script
   if (!pkg._checkmyapp) {
     pkg._checkmyapp = {};
