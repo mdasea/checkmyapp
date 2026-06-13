@@ -1,6 +1,6 @@
 {
   "name": "checkmyapp",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "CLI client for checkmyapp — ngrok alternative, auto-detect dev server port and tunnel to checkmyapp server",
   "type": "module",
   "bin": "./bin/checkmyapp.js",
