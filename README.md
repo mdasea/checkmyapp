@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/checkmyapp?style=flat-square)](https://www.npmjs.com/package/checkmyapp)
 [![npm downloads](https://img.shields.io/npm/dw/checkmyapp?style=flat-square)](https://www.npmjs.com/package/checkmyapp)
 
-> **Tunnel your local dev server to the internet in 0 seconds of config.**
+> **Tunnel your local dev server to the internet in 0 seconds of config. A free ngrok alternative for npm projects.**
 
 checkmyapp is a zero‑config CLI tool that auto‑detects your dev server port and establishes a secure WebSocket tunnel — so you can share your work-in-progress with anyone, anywhere, instantly.
 

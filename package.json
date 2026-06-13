@@ -1,7 +1,7 @@
 {
   "name": "checkmyapp",
   "version": "1.1.0",
-  "description": "CLI client for checkmyapp — auto-detect dev server port and tunnel to checkmyapp server",
+  "description": "CLI client for checkmyapp — ngrok alternative, auto-detect dev server port and tunnel to checkmyapp server",
   "type": "module",
   "bin": "./bin/checkmyapp.js",
   "main": "./src/index.js",
@@ -28,9 +28,15 @@
   },
   "keywords": [
     "tunnel",
+    "ngrok alternative",
+    "localhost",
+    "localhost tunnel",
     "dev-server",
     "checkmyapp",
-    "cli"
+    "webhook testing",
+    "cli",
+    "dev-tool",
+    "port forwarding"
   ],
   "license": "MIT"
 }
