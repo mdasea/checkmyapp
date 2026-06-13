@@ -2,7 +2,7 @@
 
 // checkmyapp — CLI entry point
 import process from 'node:process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { get, set, clear as configClear, getConfigPath } from '../src/config.js';
@@ -34,13 +34,30 @@ function printHelp() {
 └─────────────────────────────────────────────┘
 
 USAGE
-  $ checkmyapp [command]
+  $ checkmyapp [options] [-- <command>]
+
+MODES
+  Auto                  Just run checkmyapp to auto-detect and tunnel
+                        your npm run dev server.
+
+  Dev (wrap command)    checkmyapp [options] [--] <command>
+                        Wrap any command to auto-detect its port and
+                        create a tunnel. The -- separator is optional
+                        when there are no checkmyapp flags.
+                        Example: checkmyapp vite
+                                 checkmyapp mvn spring-boot:run
+                                 checkmyapp --subdomain mysite -- vite
+
+  Port (existing)       checkmyapp <port> [options]
+                        Tunnel an already-running server on a port.
+                        Example: checkmyapp 8080
+                                 checkmyapp 8080 --subdomain mysite
+
+OPTIONS
+  --port <port>         Explicitly specify port (same as positional)
+  --subdomain <name>    Custom subdomain (Pro feature)
 
 COMMANDS
-  dev [-- <command>]    Start dev server + tunnel (default)
-                        Provide a command after -- to override
-                        Example: checkmyapp dev -- npx vite
-
   auth [provider]       Authenticate (github, google)
                         Optional — needed for custom subdomains
 
@@ -51,18 +68,24 @@ COMMANDS
   --help, -h            Show this help
   --version, -v         Show version
 
-TRY IT NOW (zero install)
-  $ npx checkmyapp
-
 EXAMPLES
-  # Auto-detect and tunnel npm run dev
+  # Auto-detect npm run dev
   $ checkmyapp
 
-  # Tunnel a Vite project
-  $ checkmyapp dev -- npx vite
+  # Tunnel a Vite project (auto-detect port)
+  $ checkmyapp vite
 
-  # Tunnel a specific port with custom subdomain (Pro)
-  $ checkmyapp dev -- --port 3000
+  # Tunnel a Spring Boot app (auto-detect port)
+  $ checkmyapp mvn spring-boot:run
+
+  # Tunnel an already-running server on port 8080
+  $ checkmyapp 8080
+
+  # Same, with custom subdomain (Pro)
+  $ checkmyapp 8080 --subdomain mysite
+
+  # Explicit port flag
+  $ checkmyapp --port 8080 --subdomain mysite
 
   # Authenticate for Pro features
   $ checkmyapp auth github
@@ -96,6 +119,48 @@ function printVersion() {
 }
 
 /**
+ * Parse raw CLI args into structured options.
+ * Extracts --subdomain and --port flags; returns rest (non-flag args).
+ *
+ * @param {string[]} args - Raw CLI args (process.argv.slice(2))
+ * @returns {{ subdomain: string|null, port: number|null, rest: string[] }}
+ */
+export function parseArgs(args) {
+  let subdomain = null;
+  let port = null;
+  const rest = [];
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--subdomain' && i + 1 < args.length) {
+      subdomain = args[++i];
+    } else if (args[i] === '--port' && i + 1 < args.length) {
+      const parsed = parseInt(args[++i], 10);
+      if (!Number.isFinite(parsed) || parsed < 1 || parsed > 65535) {
+        console.error(`❌ Invalid port: ${args[i]}`);
+        process.exit(1);
+      }
+      port = parsed;
+    } else {
+      rest.push(args[i]);
+    }
+  }
+
+  return { subdomain, port, rest };
+}
+
+/**
+ * Build handleDev-compatible args from a subdomain and command parts.
+ * Returns args like ['--subdomain', <s>, '--', <cmd>, ...<cmdArgs>]
+ * If subdomain is null, returns ['--', <cmd>, ...<cmdArgs>]
+ */
+function buildDevArgs(subdomain, cmd, cmdArgs = []) {
+  const args = [];
+  if (subdomain) args.push('--subdomain', subdomain);
+  args.push('--', cmd, ...cmdArgs);
+  return args;
+}
+
+/**
  * Get the command and args for the dev server.
  * Supports: checkmyapp dev [-- <command> <args...>]
  * If no command is given, default to ['npm', 'run', 'dev'].
@@ -103,7 +168,7 @@ function printVersion() {
  * @param {string[]} args - The remaining CLI args after 'dev'
  * @returns {{ command: string, args: string[] }}
  */
-function getDevCommand(args) {
+export function getDevCommand(args) {
   // If the first arg after 'dev' is '--', consume it and take the rest as command + args
   if (args.length > 0 && args[0] === '--') {
     const cmdArgs = args.slice(1);
@@ -119,6 +184,143 @@ function getDevCommand(args) {
   }
 
   return { command: 'npm', args: ['run', 'dev'] };
+}
+
+// The known subcommand names — anything else is treated as a dev command to wrap
+const KNOWN_COMMANDS = ['dev', 'auth', 'status', 'logout'];
+
+/**
+ * Route parsed args to the correct handler.
+ * Exported for testing.
+ *
+ * @param {{ subdomain: string|null, port: number|null, rest: string[] }} parsed
+ */
+export async function route(parsed) {
+  const { subdomain, port, rest } = parsed;
+
+  // --- No positional args → dev mode (npm run dev) ---
+  if (rest.length === 0 && port === null) {
+    const devArgs = subdomain ? ['--subdomain', subdomain] : [];
+    await handleDev(devArgs);
+    return;
+  }
+
+  const first = rest[0];
+
+  // --- Help / version ---
+  if (['--help', '-h', 'help'].includes(first)) { printHelp(); return; }
+  if (['--version', '-v', 'version'].includes(first)) { printVersion(); return; }
+
+  // --- Port explicitly set via --port flag ---
+  if (port !== null) {
+    await handlePort(port, subdomain);
+    return;
+  }
+
+  // --- First rest arg is numeric → port mode ---
+  if (/^\d+$/.test(first)) {
+    const p = parseInt(first, 10);
+    if (!Number.isFinite(p) || p < 1 || p > 65535) {
+      console.error(`❌ Invalid port: ${first}`);
+      process.exit(1);
+    }
+    await handlePort(p, subdomain);
+    return;
+  }
+
+  // --- Known subcommands (backward compat) ---
+  if (KNOWN_COMMANDS.includes(first)) {
+    switch (first) {
+      case 'dev':
+        await handleDev(rest.slice(1));
+        break;
+      case 'auth':
+        await handleAuth(rest.slice(1));
+        break;
+      case 'status':
+        await handleStatus();
+        break;
+      case 'logout':
+        handleLogout();
+        break;
+    }
+    return;
+  }
+
+  // --- -- separator present → dev mode with custom command ---
+  const dashIdx = rest.indexOf('--');
+  if (dashIdx !== -1) {
+    // Check for checkmyapp flags before the --
+    const opts = rest.slice(0, dashIdx);
+    const cmdParts = rest.slice(dashIdx + 1);
+    let cmdSubdomain = subdomain;
+    for (let i = 0; i < opts.length; i++) {
+      if (opts[i] === '--subdomain' && i + 1 < opts.length) {
+        cmdSubdomain = opts[++i];
+      }
+    }
+    const devArgs = buildDevArgs(cmdSubdomain, ...(cmdParts.length > 0 ? [cmdParts[0], cmdParts.slice(1)] : [null]));
+    await handleDev(devArgs);
+    return;
+  }
+
+  // --- Anything else → dev mode: wrap as command (no -- needed) ---
+  // e.g. checkmyapp vite → handleDev(['--', 'vite'])
+  //      checkmyapp mvn spring-boot:run → handleDev(['--', 'mvn', 'spring-boot:run'])
+  //      checkmyapp --subdomain foo vite → handleDev(['--subdomain', 'foo', '--', 'vite'])
+  const devArgs = buildDevArgs(subdomain, first, rest.slice(1));
+  await handleDev(devArgs);
+}
+
+/**
+ * Handle port mode — tunnel to an already-running server.
+ *
+ * @param {number} localPort
+ * @param {string|null} customSubdomain
+ */
+async function handlePort(localPort, customSubdomain) {
+  const token = getToken() || '';
+  if (token) {
+    const valid = await validateToken();
+    if (valid) {
+      console.log('🔑 Authenticated — Pro features enabled');
+    }
+  } else {
+    console.log('🔑 Running anonymously — login at https://checkmyapp.online/dashboard to track usage');
+  }
+
+  console.log(`🔌 Connecting tunnel to localhost:${localPort}...`);
+
+  const serverUrl = get('serverUrl') || 'https://api.checkmyapp.online';
+  const tunnel = new TunnelClient({
+    localPort,
+    token,
+    serverUrl,
+    subdomain: customSubdomain || null,
+  });
+
+  try {
+    await tunnel.connect();
+    // Track tunnel usage
+    const count = (get('tunnelCount') || 0) + 1;
+    set('tunnelCount', count);
+  } catch (err) {
+    console.error(`❌ Failed to establish tunnel: ${err.message}`);
+    process.exit(1);
+  }
+
+  // --- Graceful shutdown ---
+  function shutdown(signal) {
+    console.log(`\n🛑 Received ${signal}. Shutting down...`);
+    tunnel.disconnect();
+    process.exit(0);
+  }
+
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+  // Keep alive
+  await new Promise(() => {});
 }
 
 /**
@@ -145,10 +347,10 @@ async function handleDev(args) {
   if (token) {
     const valid = await validateToken();
     if (valid) {
-      console.log(`🔑 Authenticated — Pro features enabled`);
+      console.log('🔑 Authenticated — Pro features enabled');
     }
   } else {
-    console.log(`🔑 Running anonymously — login at https://checkmyapp.online/dashboard to track usage`);
+    console.log('🔑 Running anonymously — login at https://checkmyapp.online/dashboard to track usage');
   }
 
   // --- Get dev server command ---
@@ -287,51 +489,30 @@ function handleLogout() {
   console.log('🧹 Credentials cleared.');
 }
 
-// --- Main ---
+// --- Main handler ---
 async function main() {
   // Fire-and-forget version check
   checkForUpdate(PACKAGE_VERSION);
 
-  const cmd = process.argv[2] || 'dev';
-  const rest = process.argv.slice(3);
-
-  switch (cmd) {
-    case '--help':
-    case '-h':
-    case 'help':
-      printHelp();
-      break;
-
-    case '--version':
-    case '-v':
-    case 'version':
-      printVersion();
-      break;
-
-    case 'dev':
-      await handleDev(rest);
-      break;
-
-    case 'auth':
-      await handleAuth(rest);
-      break;
-
-    case 'status':
-      await handleStatus();
-      break;
-
-    case 'logout':
-      handleLogout();
-      break;
-
-    default:
-      console.error(`Unknown command: ${cmd}`);
-      printHelp();
-      process.exit(1);
-  }
+  const parsed = parseArgs(process.argv.slice(2));
+  await route(parsed);
 }
 
-main().catch((err) => {
-  console.error('❌ Unexpected error:', err.message);
-  process.exit(1);
-});
+// Only run when executed directly, not when imported as a module (e.g., tests)
+const isMainModule = (() => {
+  try {
+    if (!process.argv[1]) return false;
+    const argvPath = realpathSync(process.argv[1]);
+    const thisPath = realpathSync(__filename);
+    return argvPath === thisPath;
+  } catch {
+    return false;
+  }
+})();
+
+if (isMainModule) {
+  main().catch((err) => {
+    console.error('❌ Unexpected error:', err.message);
+    process.exit(1);
+  });
+}
