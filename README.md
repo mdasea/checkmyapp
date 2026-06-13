@@ -5,14 +5,15 @@
 
 > **Tunnel your local dev server to the internet in 0 seconds of config.**
 
-checkmyapp is a zero‑config CLI tool that auto‑detects your dev server port, authenticates you via GitHub or Google OAuth, and establishes a secure WebSocket tunnel — so you can share your work-in-progress with anyone, anywhere, instantly.
+checkmyapp is a zero‑config CLI tool that auto‑detects your dev server port and establishes a secure WebSocket tunnel — so you can share your work-in-progress with anyone, anywhere, instantly.
 
 ```bash
-npm install --save-dev checkmyapp
-npm run dev       # ✅ tunneled automatically
+npx checkmyapp vite       # tunnel Vite
+npx checkmyapp 8080       # tunnel already-running server
+npx checkmyapp            # auto-detect npm run dev
 ```
 
-That's it. Your dev server is now publicly accessible at a URL like `https://a3b8k2x1.checkmyapp.online`.
+Your dev server is now publicly accessible at a URL like `https://a3b8k2x1.checkmyapp.online`.
 
 Web dashboard → **[checkmyapp.online](https://checkmyapp.online)**  
 Features: live tunnel status, bandwidth usage, subdomain management, [session history](https://checkmyapp.online/dashboard.html).
@@ -21,41 +22,32 @@ Features: live tunnel status, bandwidth usage, subdomain management, [session hi
 
 ## Quick Start
 
-1. **Install as a dev dependency**
-
-   ```bash
-   npm install --save-dev checkmyapp
-   ```
-
-   The install automatically wraps your `dev` script — no config needed.
-
-2. **Run your dev server as usual**
-
-   ```bash
-   npm run dev
-   ```
-
-   You'll see the tunnel URL appear in the output alongside your dev server logs.
-
-3. **Share the URL**
-
-   ```
-   🌍 Tunnel established!
-      Public URL: https://a3b8k2x1.checkmyapp.online
-   ```
-
-### Manual start (without auto-wrap)
-
-If you prefer to run checkmyapp explicitly:
+### Option 1: Zero install (any project)
 
 ```bash
-npx checkmyapp
+npx checkmyapp vite                # wrap any command, auto-detect port
+npx checkmyapp python -m http.server 8080
+npx checkmyapp mvn spring-boot:run # any framework
 ```
 
-### Skip auto-init in CI
+### Option 2: Already running
 
 ```bash
-CHECKMYAPP_SKIP_INIT=1 npm install --save-dev checkmyapp
+npx checkmyapp 8080                # tunnel existing server on port 8080
+```
+
+### Option 3: Permanent install (Node.js)
+
+```bash
+npm install --save-dev checkmyapp
+npx checkmyapp init                # wraps your dev script
+npm run dev                        # tunneled automatically
+```
+
+### Option 4: No args (Node.js only)
+
+```bash
+npx checkmyapp                     # runs npm run dev, auto-detects port
 ```
 
 ---
@@ -70,10 +62,9 @@ checkmyapp follows a straightforward architecture:
 │                     │     (wss://checkmyapp.online)   │
 │  ┌───────────────┐  │                              │  ┌────────────────┐  │
 │  │  Dev Server   │  │    HTTP proxy (localhost)     │  │  Public        │  │
-│  │  (Vite, CRA,  │  │◄────────────────────────────│  │  Internet      │  │
-│  │   Express…)   │  │                              │  │  (any client)  │  │
-│  └───────┬───────┘  │                              │  └────────────────┘  │
-│          │          │                              │                      │
+│  │  (any stack)  │  │◄────────────────────────────│  │  Internet      │  │
+│  └───────┬───────┘  │                              │  │  (any client)  │  │
+│          │          │                              │  └────────────────┘  │
 │  ┌───────┴───────┐  │                              │  ┌────────────────┐  │
 │  │ checkmyapp    │──│──────────────────────────────│─│  Auth + BW     │  │
 │  │ CLI client    │  │                              │  │  + Subdomain   │  │
@@ -81,37 +72,85 @@ checkmyapp follows a straightforward architecture:
 └─────────────────────┘                              └──────────────────────┘
 ```
 
-1. **Port Detection** — checkmyapp runs your dev server (`npm run dev` by default) and watches stdout / stderr for patterns like `http://localhost:5173` or `listening on port 3000`.
-
-2. **Authentication** — Your browser opens to the checkmyapp OAuth flow (GitHub or Google). After authorizing, a session token is stored locally in `~/.config/checkmyapp/config.json`.
-
-3. **WebSocket Tunnel** — The CLI establishes a persistent WebSocket connection to the checkmyapp server, registers your session, and gets assigned a public subdomain.
-
-4. **Request Proxy** — Incoming HTTP requests to `https://<subdomain>.checkmyapp.online` are forwarded through the WebSocket to your local dev server. Responses stream back the same way.
+1. **Port Detection** — checkmyapp runs your dev server and watches stdout/stderr for patterns like `http://localhost:5173` or `listening on port 3000`.
+2. **WebSocket Tunnel** — The CLI establishes a persistent WebSocket connection to the checkmyapp server, registers your session, and gets assigned a public subdomain.
+3. **Request Proxy** — Incoming HTTP requests to `https://<subdomain>.checkmyapp.online` are forwarded through the WebSocket to your local dev server.
 
 ---
 
-## Authentication
+## Usage
 
-checkmyapp uses OAuth 2.0 to verify your identity. No passwords are handled client-side.
+### Auto mode — detect npm run dev
 
-### Supported Providers
+```bash
+checkmyapp
+```
+Runs `npm run dev`, detects the port from output, tunnels it.
 
-| Provider | Command |
-|----------|---------|
-| GitHub   | `checkmyapp auth github` (default) |
-| Google   | `checkmyapp auth google` |
+### Dev wrap — tunnel any command
 
-### Flow
+```bash
+checkmyapp vite                    # runs vite, detects port
+checkmyapp mvn spring-boot:run     # runs Maven, detects 8080
+checkmyapp node server.js          # runs node, detects port
+checkmyapp python -m http.server 8080
+```
 
-1. You run `checkmyapp auth` (or `checkmyapp dev` without a stored token).
-2. Your browser opens to the checkmyapp server's OAuth entry point.
-3. You authorize on GitHub / Google.
-4. The server redirects back to a local callback server (port 9876) with a session token.
-5. The token is saved to disk. Subsequent runs reuse it until it expires.
+The `--` separator is optional when there are no checkmyapp flags:
+```bash
+checkmyapp --subdomain mysite -- vite   # with custom subdomain
+```
 
-- **Free tier sessions** expire after **60 minutes**.
-- **Pro tier sessions** have **no expiry** (stay authenticated indefinitely).
+### Port mode — tunnel an already-running server
+
+```bash
+checkmyapp 8080                     # tunnel to localhost:8080
+checkmyapp 8080 --subdomain mysite  # with custom subdomain (Pro)
+checkmyapp --port 8080              # explicit --port flag
+```
+
+### Authentication
+
+```bash
+checkmyapp auth github    # GitHub OAuth (default)
+checkmyapp auth google    # Google OAuth
+```
+
+### Status & logout
+
+```bash
+checkmyapp status         # show session, bandwidth, config
+checkmyapp logout         # clear stored credentials
+```
+
+### Init (opt-in postinstall)
+
+```bash
+checkmyapp init           # wraps your dev script with checkmyapp
+```
+
+Instead of auto-wrapping on `npm install`, run this once to opt in.
+
+---
+
+## Framework Compatibility
+
+checkmyapp works with any framework that prints its port to stdout. Tested with:
+
+- **Vite** — `http://localhost:5173`
+- **Next.js** — `▲ Next.js 14+ on http://localhost:3000`
+- **Express** — `Server listening on port 8080`
+- **Spring Boot** — `Tomcat started on port(s): 8080`
+- **Python** — `Serving HTTP on 0.0.0.0 port 8080`
+- **Go** — `Listening on :8080`
+- **Create React App** — `Local: http://localhost:3000`
+- **SvelteKit** — `Local: http://localhost:5173`
+- **Astro** — `▶ Local: http://localhost:4321`
+
+If your framework uses a non‑standard format, use port mode:
+```bash
+checkmyapp 8080
+```
 
 ---
 
@@ -121,91 +160,13 @@ checkmyapp uses OAuth 2.0 to verify your identity. No passwords are handled clie
 |----------------------|------------------------------------|------------------------------|
 | **Price**            | $0                                 | $5 / month                   |
 | **Session duration** | 60 minutes                         | 24 hours                     |
-| **Concurrent tunnels** | 1                                | 3                            |
+| **Concurrent tunnels** | 1                                | Unlimited                    |
 | **Bandwidth**        | 500 MB / day                       | 10 GB / month                |
-| **Subdomain**        | Random (e.g. `a3b8k2x1`)          | 1 permanent custom subdomain |
+| **Subdomain**        | Random (e.g. `a3b8k2x1`)          | 3 permanent custom subdomains|
 | **Tunnel history**   | ✅ Dashboard                       | ✅ Dashboard + extended      |
 | **Web dashboard**    | ✅ checkmyapp.online               | ✅ checkmyapp.online         |
 
 Upgrade via the [web dashboard](https://checkmyapp.online/pro.html).
-
----
-
-## Framework Compatibility
-
-checkmyapp works with any framework that prints its port to stdout. Tested with:
-
-- [x] **Vite** — `http://localhost:5173`
-- [x] **Next.js** — `▲ Next.js 14+ on http://localhost:3000`
-- [x] **Create React App (CRA)** — `Local: http://localhost:3000`
-- [x] **Express** — `Server listening on port 8080`
-- [x] **SvelteKit** — `Local: http://localhost:5173`
-- [x] **Astro** — `▶ Local: http://localhost:4321`
-
-If your framework uses a non‑standard port announcement format, you can pass the port explicitly via the `--` flag:
-
-```bash
-checkmyapp dev -- node my-custom-server.js
-```
-
----
-
-## CLI Commands
-
-### `checkmyapp dev [-- <command> <args...>]`
-
-Run a dev server and tunnel it. This is the **default** command.
-
-- If no command is given, it runs `npm run dev`.
-- Use `--` to pass a custom command: `checkmyapp dev -- npx vite`
-- Automatically detects the port from output logs.
-
-```bash
-checkmyapp dev                           # npm run dev → tunnel
-checkmyapp dev -- npx vite               # vite → tunnel
-checkmyapp dev -- node server.mjs        # custom server → tunnel
-```
-
-### `checkmyapp auth [provider]`
-
-Authenticate with an OAuth provider.
-
-```bash
-checkmyapp auth          # GitHub (default)
-checkmyapp auth github   # GitHub explicitly
-checkmyapp auth google   # Google
-```
-
-### `checkmyapp status`
-
-Show current session information, authentication status, and configuration path.
-
-```
-📋 checkmyapp Status
-  Server URL:      https://checkmyapp.online
-  Authenticated:   ✅ Yes
-  Last subdomain:  a3b8k2x1
-  Config file:     /home/user/.config/checkmyapp/config.json
-  Node.js:         v22.0.0
-  Platform:        linux
-```
-
-### `checkmyapp logout`
-
-Clear stored credentials and configuration.
-
-```bash
-checkmyapp logout
-# 🧹 Credentials cleared.
-```
-
-### `--help`, `-h`
-
-Show usage information.
-
-### `--version`, `-v`
-
-Show the installed version.
 
 ---
 
@@ -218,6 +179,7 @@ The CLI persists configuration in `~/.config/checkmyapp/config.json` using the [
 | Variable         | Description                          | Default                  |
 |------------------|--------------------------------------|--------------------------|
 | `CHECKMYAPP_SERVER_URL` | URL of the checkmyapp tunnel server | `https://checkmyapp.online` |
+| `CHECKMYAPP_SKIP_INIT`  | Skip postinstall auto-init           | —                        |
 
 ---
 
@@ -225,53 +187,38 @@ The CLI persists configuration in `~/.config/checkmyapp/config.json` using the [
 
 | Feature                | checkmyapp                                      | ngrok                     | localtunnel               | bore                      |
 |------------------------|-------------------------------------------------|---------------------------|---------------------------|---------------------------|
-| **Setup time**         | 0 config — just `npx checkmyapp`               | Auth token + config file  | One command               | One command               |
+| **Setup time**         | 0 config — just `npx checkmyapp vite`          | Auth token + config file  | One command               | One command               |
 | **Port detection**     | ✅ Auto-detects from stdout                    | ❌ Manual                  | ❌ Manual                  | ❌ Manual                  |
-| **Auth**               | GitHub / Google OAuth                          | Built-in (email/password) | None                      | None (public)             |
+| **Already-running**    | ✅ `checkmyapp 8080`                           | ❌ Must specify port       | ❌ Must specify port       | ❌ Must specify port       |
 | **Free bandwidth**     | 500 MB / day                                   | 1 GB / month              | Unlimited (no SLA)        | Unlimited (no SLA)        |
 | **Free session TTL**   | 60 minutes                                     | 1 hour                    | Connection‑based          | Connection‑based          |
 | **Custom subdomains**  | ✅ Pro plan                                    | ✅ Paid plans             | ❌ Random only             | ❌ Random only             |
 | **Pricing**            | $5/mo Pro                                      | From $8/mo                | Free / donations          | Free                      |
 | **Web dashboard**      | ✅ checkmyapp.online                           | ✅                        | ❌                         | ❌                         |
 
-### When to choose checkmyapp
-
-- You want **zero configuration** — just install and run.
-- You value **OAuth‑based authentication** over API tokens.
-- You need **generous free bandwidth** (500 MB/day vs typical 1 GB/month).
-- You're a student or indie developer building and sharing prototypes.
-
-### When to consider alternatives
-
-- **ngrok** — if you need enterprise features (TCP tunnels, SOCKS proxy, IP restrictions, dedicated domains).
-- **localtunnel** — for quick, anonymous sharing without authentication.
-- **bore** — for a minimal, bare‑bones tunnel (no auth, no bandwidth limits).
-
 ---
 
 ## FAQ
 
-### Can I use checkmyapp without installing it globally?
+### Can I use checkmyapp without installing it?
 
-Yes. Install as a dev dependency and run via `npx`:
-
-```bash
-npm install --save-dev checkmyapp
-npx checkmyapp
-```
+Yes. `npx checkmyapp vite` — no install needed.
 
 ### What happens when my free session expires?
 
-After 60 minutes the tunnel closes. Just run `checkmyapp dev` again to start a new session — you'll be re‑authenticated automatically if your token is still valid.
+After 60 minutes the tunnel closes. Just run `checkmyapp` again — you'll get a new URL.
 
-### Can I use a custom domain or subdomain?
+### Can I use a custom subdomain?
 
-Custom subdomains are available on the **Pro** plan ($5/mo). On the free plan you get a random subdomain like `a3b8k2x1.checkmyapp.online`. Upgrade via the [Pro page](https://checkmyapp.online/pro.html).
+Yes, on the **Pro** plan ($5/mo). Free plan gets random subdomains. Upgrade via the [Pro page](https://checkmyapp.online/pro.html).
+
+### Does checkmyapp work with Spring Boot / Go / Python?
+
+Yes. Use `checkmyapp mvn spring-boot:run` (auto-wrap) or `checkmyapp 8080` (already running).
 
 ### How does port detection work?
 
-checkmyapp spawns your dev server as a child process and monitors both stdout and stderr for port patterns:
-
+checkmyapp monitors stdout/stderr for patterns:
 - `http://localhost:\d+`
 - `http://127.0.0.1:\d+`
 - `port\s*:?\s*\d+`
@@ -279,27 +226,17 @@ checkmyapp spawns your dev server as a child process and monitors both stdout an
 - `started on \d+`
 - `server running at.*:\d+`
 
-If your framework announces its port differently, open an issue or use the `--` passthrough with an explicit command.
-
 ### Is the tunnel encrypted?
 
-Yes. The WebSocket connection uses WSS (WebSocket Secure) when connecting to the production server. Data between your local dev server and the tunnel client is unencrypted (localhost only).
+Yes. WebSocket uses WSS. Data between your local server and the CLI is unencrypted (localhost only).
 
-### Can I run checkmyapp on a headless server (no browser)?
+### Can I run checkmyapp on a headless server?
 
-Yes. When a browser can't be opened automatically, the CLI prints the OAuth URL. Copy and paste it into a browser on any machine to authenticate.
-
-### Does checkmyapp work behind a corporate proxy?
-
-The CLI uses standard HTTP/WebSocket libraries that respect `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables. Set them as needed for your network.
+Yes. If no browser is available, the CLI prints the OAuth URL for manual authentication.
 
 ### How do I upgrade to Pro?
 
 Go to [checkmyapp.online/pro.html](https://checkmyapp.online/pro.html) and authenticate. Pay via PayPal or Wise.
-
-### What data does checkmyapp collect?
-
-Only the data necessary for tunnel operation: your GitHub/Google public profile (name, email, avatar), bandwidth usage counters, and subdomain reservations. No code or request payloads are stored on the server beyond what's needed to relay them.
 
 ---
 
@@ -313,7 +250,7 @@ cd checkmyapp
 # Install dependencies
 npm install
 
-# Run tests
+# Run all tests
 npm test
 ```
 
@@ -328,7 +265,11 @@ checkmyapp/
 │   ├── config.js           # Persistent config (conf)
 │   ├── port-detection.js   # Dev server port detection
 │   └── tunnel.js           # WebSocket tunnel client
+├── scripts/
+│   ├── postinstall.js      # Opt-in dev script wrapper
+│   └── preuninstall.js     # Restore original dev script
 └── tests/
+    ├── cli.test.js          # CLI parsing & routing (52 tests)
     ├── config.test.js
     └── port-detection.test.js
 ```

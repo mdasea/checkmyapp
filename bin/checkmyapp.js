@@ -2,7 +2,7 @@
 
 // checkmyapp — CLI entry point
 import process from 'node:process';
-import { readFileSync, realpathSync } from 'node:fs';
+import { readFileSync, realpathSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { get, set, clear as configClear, getConfigPath } from '../src/config.js';
@@ -187,7 +187,7 @@ export function getDevCommand(args) {
 }
 
 // The known subcommand names — anything else is treated as a dev command to wrap
-const KNOWN_COMMANDS = ['dev', 'auth', 'status', 'logout'];
+const KNOWN_COMMANDS = ['dev', 'auth', 'status', 'logout', 'init'];
 
 /**
  * Route parsed args to the correct handler.
@@ -233,6 +233,9 @@ export async function route(parsed) {
     switch (first) {
       case 'dev':
         await handleDev(rest.slice(1));
+        break;
+      case 'init':
+        await handleInit();
         break;
       case 'auth':
         await handleAuth(rest.slice(1));
@@ -487,6 +490,67 @@ ${tierInfo ? tierInfo + '\n' : ''}${bandwidthInfo ? bandwidthInfo + '\n' : ''}  
 function handleLogout() {
   configClear();
   console.log('🧹 Credentials cleared.');
+}
+
+/**
+ * Handle the 'init' command — opt-in dev script wrapping.
+ * Scans the project's package.json and wraps the dev script
+ * with checkmyapp if it isn't already wrapped.
+ */
+async function handleInit() {
+  const projectRoot = process.env.INIT_CWD || process.cwd();
+  const pkgPath = resolve(projectRoot, 'package.json');
+
+  if (!existsSync(pkgPath)) {
+    console.error('❌ No package.json found in', projectRoot);
+    process.exit(1);
+  }
+
+  let pkg;
+  try {
+    pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+  } catch (err) {
+    console.error('❌ Failed to parse package.json:', err.message);
+    process.exit(1);
+  }
+
+  const currentDev = pkg.scripts?.dev;
+
+  if (!currentDev) {
+    console.log('ℹ️  No "dev" script found in package.json.');
+    console.log('   Create one and run checkmyapp init again, or use checkmyapp directly:');
+    console.log('     npx checkmyapp <your-command>');
+    process.exit(0);
+  }
+
+  if (currentDev.startsWith('checkmyapp') || currentDev.startsWith('npx checkmyapp')) {
+    console.log('ℹ️  Your "dev" script is already wrapped with checkmyapp.');
+    process.exit(0);
+  }
+
+  // Back up original dev script
+  if (!pkg._checkmyapp) {
+    pkg._checkmyapp = {};
+  }
+  pkg._checkmyapp.originalDev = currentDev;
+
+  // Wrap it
+  const newDev = `checkmyapp -- ${currentDev}`;
+  pkg.scripts.dev = newDev;
+
+  try {
+    writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8');
+    console.log('✅  Dev script wrapped with checkmyapp!');
+    console.log();
+    console.log(`   Original:  npm run dev  →  ${currentDev}`);
+    console.log(`   New:       npm run dev  →  ${newDev}`);
+    console.log();
+    console.log('   Continue using npm run dev as always.');
+    console.log('   To undo: npm uninstall checkmyapp (restores original)');
+  } catch (err) {
+    console.error('❌ Failed to write package.json:', err.message);
+    process.exit(1);
+  }
 }
 
 // --- Main handler ---
